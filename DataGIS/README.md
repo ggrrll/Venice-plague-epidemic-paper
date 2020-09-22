@@ -1,0 +1,1 @@
+This folder contains a GIS shape file for the city of Venice, divided by parish.

@@ -1,0 +1,266 @@
+---
+title: "Venice deaths on Maps"
+author: "G. Lazzari and G. Colavizza"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+```{r}
+# clean env. vars
+rm(list=ls()) 
+
+# packages for maps
+library(maptools) # gpclibPermit()
+library(tmap)
+library(rgdal)
+library(oce)
+library("RColorBrewer")
+
+# basic packages
+library("ggplot2")
+library(reshape2)
+library(dplyr)
+library(lubridate)
+```
+
+# Load shap file for map skeleton
+```{r}
+shap = readOGR('../DataGIS/1729_PAR_CONF.shp')
+
+# 'id' does not seem to be useful --> remove it
+shap@data <- shap@data['NAME']
+```
+
+# Original deaths on map
+
+## Load, clean  dataset
+
+```{r}
+original_deaths <- read.csv('../dataset/ALL_utf.csv')
+# mind that NA have to be set to 0, ...
+# otherwise the aggregrated sum will be reduced to NA!, but...
+original_deaths[is.na(original_deaths)] <- 0 # cleaning NAs >> we'll set them back later to NA (***)
+
+# fix dates
+original_deaths$Date <- as.POSIXct(original_deaths$Date,format = '%m/%d/%Y')
+my_shift <- as.POSIXct('1629-01-01')
+original_deaths$Date <- original_deaths$Date - difftime(original_deaths$Date[1],my_shift )
+```
+
+
+## aggregate over months
+
+(and set back NAs)
+```{r}
+# melt parishes
+melted_df  =  melt(original_deaths,'Date',variable.name = 'parish',value.name = 'deaths')
+
+# group over months, sum ...
+# credits to: https://ro-che.info/articles/2017-02-22-group_by_month_r 
+agg_melt_df = melted_df %>% group_by(month=floor_date(Date, "month"),parish=parish) %>% 
+      summarise(deaths = sum(deaths))
+
+# ...and un-melt again
+agg_df = as.data.frame(t(dcast(agg_melt_df,month~parish,drop = FALSE)))
+
+#...and remove useless row
+agg_df = agg_df[-1,]
+
+# save parishes names as they will be canceledby next step
+parish_names = rownames(agg_df)
+
+# trasform all data to numeric 
+agg_df = as.data.frame(sapply(agg_df,function(x){as.numeric(as.character(x))}))
+
+#  (***) set parish with no deaths on the whole t-w to NAs!
+agg_df[rowSums(agg_df) == 0,] = NA
+
+# create name col
+agg_df$NAME = parish_names
+
+# remove vars of intermediate steps
+remove(melted_df,agg_melt_df,parish_names)
+```
+
+
+## sum over whole time window 
+(don't run this section if you are not interested)
+
+create cols for sums and names and drop the rest (and set back NAs)
+
+```{r}
+original_summed <- as.data.frame(colSums(original_deaths[,2:ncol(original_deaths)]))
+colnames(original_summed) <- 'Total_deaths'
+original_summed$NAME <- rownames(original_summed)
+remove(original_deaths)
+
+# remember we had to set NAs to 0 to avoid missing some data). Indeed now we have lost all NAs:
+sum(is.na(original_summed))
+# so we set it back to NA:
+original_summed[original_summed==0] = NA
+sum(is.na(original_summed))
+```
+
+## merge deaths data into shape object
+
+fix col names to match names in shapes: 
+```{r} 
+#replace spaces with dots 
+shap@data$NAME <- sapply(shap@data$NAME, function(x) gsub('\\s','.',x))
+```
+
+fix col names to match names in dataset summed  >> over all time-window <<
+```{r}
+# the only problematic one is S..Giacomo.dell.Orio --> fixed it: 
+original_summed$NAME[original_summed$NAME=='S..Giacomo.dell.Orio'] <- 'S..Giacomo.dell\'Orio'
+
+# check (in)compatibility of names 
+sum(!(original_summed$NAME %in% shap@data$NAME)) # -- not bad ;), 0 mismatch!
+
+### view mismatches ### 
+View(shap@data[!(shap@data$NAME %in% original_summed$NAME),]) # 15 parishes 
+View(original_summed[!(original_summed$NAME %in% shap@data$NAME),])
+```
+
+
+fix col names to match names in dataset aggregated >> over month <<
+```{r}
+# the only problematic one is S..Giacomo.dell.Orio --> fixed it: 
+agg_df$NAME[agg_df$NAME=='S..Giacomo.dell.Orio'] <- 'S..Giacomo.dell\'Orio'
+## check (in)compatibility of names 
+sum(!(agg_df$NAME %in% shap@data$NAME)) # -- not bad ;), 0 mismatch!
+
+### view mismatches ### 
+View(shap@data[!(shap@data$NAME %in% agg_df$NAME),]) # 15 parishes have no deaths counts -- it's fine
+View(agg_df[!(agg_df$NAME %in% shap@data$NAME),1:2]) 
+```
+
+merge data summed over --> all time window <--
+```{r}
+# keep track of original sorting -- before merging!!
+shap@data$id = rownames(shap@data)
+
+# actual merging
+shap@data = merge(shap@data,original_summed,
+                  by = 'NAME',all.x = TRUE,all.y = TRUE,sort = FALSE)
+
+# set id as numeric 
+shap@data$id = as.numeric(as.character(shap@data$id))
+# order df using previous id 
+shap@data = shap@data[order(shap@data$id),]
+```
+
+merge data aggregated --> over months  <--
+```{r}
+
+# keep track of original sorting -- before merging!!
+shap@data$id = rownames(shap@data)
+
+# actual merging
+shap@data = merge(shap@data,agg_df,
+                  by = 'NAME',all.x = TRUE,sort = FALSE)
+
+# set id as numeric 
+shap@data$id = as.numeric(as.character(shap@data$id))
+# order df using previous id 
+shap@data = shap@data[order(shap@data$id),]
+
+# set deaths data as numeric
+shap@data[,3:ncol(shap@data)] = sapply(shap@data[,3:ncol(shap@data)],as.numeric)
+
+# fix col names
+months_names <- c(
+    'january 1629','february 1629','march 1629','april 1629','may 1629','june 1629','july 1629','august 1629','september 1629','october 1629','november 1629','december 1629',    
+    'january 1630','february 1630','march 1630','april 1630','may 1630','june 1630','july 1630','august 1630','september 1630','october 1630','november 1630','december 1630',
+    'january 1631','february 1631','march 1631','april 1631','may 1631','june 1631','july 1631','august 1631','september 1631','october 1631','november 1631','december 1631'
+)
+
+colnames(shap@data) <- c(c('NAME','id'),months_names)
+
+
+View(shap@data)
+```
+
+## Plot cases on map 
+(doc for space analysis/plot in R: https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf )
+
+
+in order to simplify the plot, we keep only labels for parishes with: N deaths > cut-off 
+```{r}
+# names_cutoff = 
+
+my_name = function(x,cutoff=1000){
+    
+    if ((shap@data$Total_deaths[shap@data$NAME==x] > cutoff) & 
+        !is.na(shap@data$Total_deaths[shap@data$NAME==x])){
+        return(x)
+    }
+    else{
+        return(NA)
+    }
+    
+}
+
+shap@data$names_cutoff = sapply(shap@data$NAME,my_name)
+```
+
+
+
+map cases >>> by month <<<
+```{r}
+pdf('map_monthly_cases.pdf',height = 6, width = 12)
+
+# (parishes names makes plot unreadable)
+qtm(shap ,fill = colnames(shap@data)[20:ncol(shap@data)],ncol = 5)
+
+dev.off()
+
+### testing on single month 
+# qtm(shap, text = 'NAME', text.size = 0.5, fill = c('january 1631'))
+```
+
+map with labels >>> total cases  <<< 
+```{r}
+pdf('map_total_cases_with_labels.pdf',height = 6, width = 12)
+
+tm_shape(shap) + tm_fill('Total_deaths') + tm_text('NAME', size = 0.5 , col = 'black') + tm_layout(bg.color="lightblue") 
+
+## saving
+dev.off()
+```
+
+here we fix the text going over boundary -- in the two-row name
+(fttb, we change only the only problematic one)
+```{r}
+shap@data$names_cutoff[shap@data$NAME=='S..Pietro.di.Castello'] = 'S..Pietro\ndi.Castello'
+
+View(shap@data[shap@data$NAME=='S..Pietro.di.Castello',])
+```
+
+map with labels >>> total cases  <<<  -- version with less (cutoff) labels 
+```{r}
+pdf('map_total_cases_with_labels_cutoff.pdf',height = 6, width = 12)
+# qtm(shap,'Total_deaths',text = 'names_cutoff', text.size = 0.8,text.col = 'black')
+
+tm_shape(shap) + tm_fill('Total_deaths') + tm_text('names_cutoff', size = 0.8 , col = 'black') + tm_layout(bg.color="lightblue") 
+
+
+## saving
+dev.off()
+```
+
+
+map total cases without labels
+```{r}
+# pdf('map_total_cases_no_labels.pdf',height = 6, width = 12)
+qtm(shap,'Total_deaths')
+
+## saving
+dev.off()
+```

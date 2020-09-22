@@ -1,0 +1,1 @@
+Meausure and viz differences of the effect of **ER** (random graph) VS **WS** (small-world graph) topologies on epidemiological quantities (*not in the paper*)
