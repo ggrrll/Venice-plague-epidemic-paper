@@ -1,5 +1,7 @@
 # Death in Venice: A Digital Reconstruction of a Large Plague Outbreak During 1630-1631
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4049852.svg)](https://doi.org/10.5281/zenodo.4049852)
+
 Paper: https://www.medrxiv.org/content/10.1101/2020.03.11.20034116v1.
 
 ## Contents
@@ -25,3 +27,4 @@ or
   publisher={Cold Spring Harbor Laboratory Press}
 }
 ```
+        
