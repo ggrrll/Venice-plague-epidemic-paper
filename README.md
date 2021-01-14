@@ -19,12 +19,14 @@ _Lazzari, G., Colavizza, G., Bortoluzzi, F., Drago, D., Erboso, A., Zugno, F., .
 or
 
 ```
-@article{lazzari2020death,
-  title={Death in Venice: A Digital Reconstruction of a Large Plague Outbreak During 1630-1631},
-  author={Lazzari, Gianrocco and Colavizza, Giovanni and Bortoluzzi, Fabio and Drago, Davide and Erboso, Andrea and Zugno, Francesca and Kaplan, Frederic and Salathe, Marcel},
-  journal={medRxiv},
+@article{lazzari2020digital,
+  title={A digital reconstruction of the 1630--1631 large plague outbreak in Venice},
+  author={Lazzari, Gianrocco and Colavizza, Giovanni and Bortoluzzi, Fabio and Drago, Davide and Erboso, Andrea and Zugno, Francesca and Kaplan, Fr{\'e}d{\'e}ric and Salath{\'e}, Marcel},
+  journal={Scientific reports},
+  volume={10},
+  number={1},
+  pages={1--7},
   year={2020},
-  publisher={Cold Spring Harbor Laboratory Press}
-}
-```
+  publisher={Nature Publishing Group}
+}```
         
