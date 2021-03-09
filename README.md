@@ -14,7 +14,7 @@ Paper: https://www.medrxiv.org/content/10.1101/2020.03.11.20034116v1.
 
 ## Cite as 
 
-_Lazzari, G., Colavizza, G., Bortoluzzi, F., Drago, D., Erboso, A., Zugno, F., ... & Salathe, M. (2020). Death in Venice: A Digital Reconstruction of a Large Plague Outbreak During 1630-1631. medRxiv._
+_Lazzari, G., Colavizza, G., Bortoluzzi, F., Drago, D., Erboso, A., Zugno, F., ... & Salathé, M. (2020). A digital reconstruction of the 1630–1631 large plague outbreak in Venice. Scientific reports, 10(1), 1-7._
 
 or
 
